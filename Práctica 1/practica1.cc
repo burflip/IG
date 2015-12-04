@@ -5,24 +5,32 @@
 #include <matrix.h>
 #include <file_ply_stl.h>
 #include <revolutiongenerator.h>
+#include <hieralchicalspider.h>
+
+#define PLY 0
+#define REVOLUTION 1
+#define HIERARCHICAL 2
+#define MIXED 3
 
 using namespace std;
 
 // tamaño de los ejes
 const int AXIS_SIZE=5000;
-char * CURRENT_PLY = "ply/chess.ply";
 
 // variables que definen la posicion de la camara en coordenadas polares
 GLfloat Observer_distance;
 GLfloat Observer_angle_x;
 GLfloat Observer_angle_y;
 Matrix matrix;
+HieralchicalSpider spider;
+int object_type=HIERARCHICAL;
+bool animate = false;
 
 // variables que controlan la ventana y la transformacion de perspectiva
 GLfloat Window_width,Window_height,Front_plane,Back_plane;
 
 // variables que determninan la posicion y tamaño de la ventana X
-int UI_window_pos_x=50,UI_window_pos_y=50,UI_window_width=500,UI_window_height=500;
+int UI_window_pos_x=50,UI_window_pos_y=50,UI_window_width=1280,UI_window_height=720;
 
 //**************************************************************************
 //
@@ -93,7 +101,24 @@ glEnd();
 
 void draw_objects()
 {
-    matrix.drawCurrentObject();
+    switch (object_type) {
+    case PLY:
+        matrix.drawObject(PLY);
+        break;
+    case REVOLUTION:
+        matrix.drawObject(REVOLUTION);
+        break;
+    case HIERARCHICAL:
+        spider.draw();
+        break;
+    case MIXED:
+        spider.draw();
+        matrix.drawObjectTranslated(PLY);
+        break;
+    default:
+        break;
+    }
+
 }
 
 
@@ -103,12 +128,11 @@ void draw_objects()
 
 void draw_scene(void)
 {
-
-clear_window();
-change_observer();
-draw_axis();
-draw_objects();
-glutSwapBuffers();
+    clear_window();
+    change_observer();
+    draw_axis();
+    draw_objects();
+    glutSwapBuffers();
 }
 
 
@@ -123,9 +147,9 @@ glutSwapBuffers();
 
 void change_window_size(int Ancho1,int Alto1)
 {
-change_projection();
-glViewport(0,0,Ancho1,Alto1);
-glutPostRedisplay();
+    change_projection();
+    glViewport(0,0,Ancho1,Alto1);
+    glutPostRedisplay();
 }
 
 
@@ -146,26 +170,82 @@ void normal_keys(unsigned char Tecla1,int x,int y)
         break;
     case 'J':
         matrix.setDrawingMode(AJEDREZ);
+        spider.setDrawingMode(AJEDREZ);
         break;
     case 'A':
         matrix.setDrawingMode(ALAMBRE);
+        spider.setDrawingMode(ALAMBRE);
         break;
     case 'P':
         matrix.setDrawingMode(PUNTOS);
+        spider.setDrawingMode(PUNTOS);
         break;
     case 'S':
         matrix.setDrawingMode(SOLIDO);
+        spider.setDrawingMode(SOLIDO);
         break;
     case 'R':
         matrix.setDrawingMode(MEZCLA);
+        spider.setDrawingMode(MEZCLA);
         break;
-    case '+':
-        matrix.incrementSize();
+    case '1':
+        object_type = PLY;
         break;
-    case '-':
-        matrix.decrementSize();
+    case '2':
+        object_type = REVOLUTION;
+        break;
+    case '3':
+        object_type = HIERARCHICAL;
+        break;
+    case '4':
+        object_type = MIXED;
         break;
 
+    }
+
+    switch (Tecla1) {
+    case 'z':
+        spider.incrementLegsAnim();
+        break;
+    case 'Z':
+        spider.decrementLegsAnim();
+        break;
+    case 'x':
+        spider.incrementMouthAnim();
+        break;
+    case 'X':
+        spider.decrementMouthAnim();
+        break;
+    case 'c':
+        spider.incrementHeadAnim();
+        break;
+    case 'C':
+        spider.decrementHeadAnim();
+        break;
+    case 'u':
+        if(animate)
+            animate = false;
+        else
+            animate = true;
+        break;
+    case 'b':
+        spider.incrementLegsSpeed();
+        break;
+    case 'B':
+        spider.decrementLegsSpeed();
+        break;
+    case 'n':
+        spider.incrementMouthSpeed();
+        break;
+    case 'N':
+        spider.decrementMouthSpeed();
+        break;
+    case 'm':
+        spider.incrementHeadSpeed();
+        break;
+    case 'M':
+        spider.decrementHeadSpeed();
+        break;
     }
 
     draw_scene();
@@ -195,6 +275,25 @@ switch (Tecla1){
 glutPostRedisplay();
 }
 
+void idle()
+{
+    if(animate)
+    {
+        spider.animate();
+        if(object_type != MIXED)
+            glutPostRedisplay();
+    }
+    switch(object_type) {
+    case MIXED:
+        matrix.getCurrentObject().incrementRotationAngle();
+        glutPostRedisplay();
+        break;
+    }
+
+
+
+}
+
 
 
 //***************************************************************************
@@ -204,8 +303,8 @@ glutPostRedisplay();
 void initialize(void)
 {
 // se inicalizan la ventana y los planos de corte
-Window_width=5;
-Window_height=5;
+Window_width=1.92;
+Window_height=1.08;
 Front_plane=10;
 Back_plane=1000;
 
@@ -259,7 +358,7 @@ glutInitWindowSize(UI_window_width,UI_window_height);
 
 // llamada para crear la ventana, indicando el titulo (no se visualiza hasta que se llama
 // al bucle de eventos)
-glutCreateWindow("Práctica 2");
+glutCreateWindow("Práctica 3 - Valentín Pedrosa");
 
 // asignación de la funcion llamada "dibujar" al evento de dibujo
 glutDisplayFunc(draw_scene);
@@ -270,15 +369,18 @@ glutKeyboardFunc(normal_keys);
 // asignación de la funcion llamada "tecla_Especial" al evento correspondiente
 glutSpecialFunc(special_keys);
 
-//Cargamos el archivo ply, y lo pasamos al generador de revolución
-matrix.loadRevolutionModel(CURRENT_PLY,10);
 //Modo de dibujo por defecto
-matrix.setDrawingMode(PUNTOS);
+matrix.setDrawingMode(ALAMBRE);
+spider.setDrawingMode(ALAMBRE);
+matrix.loadModel((char*)"ply/beethoven.ply");
+matrix.loadRevolutionModel((char*)"ply/chess.ply",10);
+
 
 // funcion de inicialización
 initialize();
-
+glutIdleFunc(idle);
 // inicio del bucle de eventos
 glutMainLoop();
+
 return 0;
 }

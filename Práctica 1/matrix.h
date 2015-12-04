@@ -11,6 +11,9 @@
 #include <vertex.h>
 #include <vector>
 #include <file_ply_stl.h>
+#include <object3d.h>
+#include <leg.h>
+#include <torax.h>
 
 using namespace std;
 
@@ -19,33 +22,26 @@ class Matrix
 public:
 
     Matrix();
-    Matrix(vector<_vertex3f> &vertices);
-    void storeObject(vector<_vertex3f> &vertices);
-    void addVertex(float x, float y, float z);
-    void addVertex(_vertex3f vertex);
-    void addFace(unsigned int _0,unsigned int _1,unsigned int _2);
-    void addFace(_vertex3ui face_coords);
-    void drawCurrentObject();
 
+    void storeObject(Object3d & object);
+    void store3dHObject(_3dHBasicElement & elem);
+
+    void drawCurrentObject();
+    void draw3dJObjects();
+    void drawPLYObjects();
+    void drawPLYObject(vector<Object3d>::iterator & obj_it);
+    void drawAllObjects();
+    void drawObject(int pos);
+    void drawObjectTranslated(int pos);
 
     void loadModel(char * ply_model_file);
     void loadRevolutionModel(char * ply_mode_file, int N);
-    void clear();
 
-    inline int getVerticesNumber()
+    inline Object3d & getCurrentObject()
     {
-        return this->vertices.size();
+        return (*current_object);
     }
 
-    inline int getFacesNumber()
-    {
-        return this->faces.size();
-    }
-
-    inline void setDrawingMode(int d)
-    {
-        this->drawing_mode = d;
-    }
     inline void setMultiplier(float m)
     {
         this->multiplier = m;
@@ -62,23 +58,22 @@ public:
         }
     }
 
-    //DEBUG FUNCTIONS
-
-    void printVertices();
-    void printFaces();
+    void setDrawingMode(int mode);
 
 private:
 
-    vector<_vertex3f> vertices;
-    vector<_vertex3ui> faces;
+    vector<Object3d> objects;
+    vector<Object3d>::iterator current_object;
+    vector<_3dHBasicElement> jerarquic_objects;
+
     int drawing_mode;
     float multiplier;
 
-    void drawPoints();
-    void drawSolid();
-    void drawWire();
-    void drawChess();
-    void drawWithTriangles(bool wired = false);
+    void drawPoints(Object3d & obj);
+    void drawSolid(Object3d & obj);
+    void drawWire(Object3d & obj);
+    void drawChess(Object3d & obj);
+    void drawWithTriangles(Object3d & obj, bool wired = false);
 
 };
 

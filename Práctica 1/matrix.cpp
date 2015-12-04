@@ -4,129 +4,165 @@
 #include <vector>
 #include <file_ply_stl.h>
 #include <revolutiongenerator.h>
+#include <object3d.h>
+#include <leg.h>
 
 Matrix::Matrix()
 {
     this->multiplier = 1;
 }
 
-Matrix::Matrix(vector<_vertex3f> &vertices)
+void Matrix::storeObject(Object3d & obj)
 {
-    storeObject(vertices);
+    this->objects.push_back(obj);
+    this->current_object = objects.end();
 }
 
-void Matrix::storeObject(vector<_vertex3f> &vertices)
+void Matrix::store3dHObject(_3dHBasicElement &elem)
 {
-    this->vertices = vertices;
+    this->jerarquic_objects.push_back(elem);
 }
 
-void Matrix::addVertex(float x, float y, float z)
+void Matrix::draw3dJObjects()
 {
-    this->vertices.push_back(_vertex3f(x,y,z));
+    vector<_3dHBasicElement>::iterator it=this->jerarquic_objects.begin();
+    while(it != this->jerarquic_objects.end())
+    {
+        (*it).draw();
+        it++;
+    }
 }
 
-void Matrix::addVertex(_vertex3f vertex)
+void Matrix::drawPLYObjects()
 {
-    this->vertices.push_back(vertex);
+    vector<Object3d>::iterator ply_obj = this->objects.begin();
+    while(ply_obj != this->objects.end()) {
+        drawPLYObject(ply_obj);
+        ply_obj++;
+    }
 }
 
-void Matrix::addFace(unsigned int _0,unsigned int _1, unsigned int _2)
-{
-    this->faces.push_back(_vertex3ui(_0,_1,_2));
-}
-
-void Matrix::addFace(_vertex3ui face_coords)
-{
-    this->faces.push_back(face_coords);
-}
-
-void Matrix::drawCurrentObject()
+void Matrix::drawPLYObject(vector<Object3d>::iterator & obj_it)
 {
     switch(this->drawing_mode) {
     case PUNTOS:
-        drawPoints();
+        drawPoints((*obj_it));
         break;
     case ALAMBRE:
-        drawWire();
+        drawWire((*obj_it));
         break;
     case SOLIDO:
-        drawSolid();
+        drawSolid((*obj_it));
         break;
     case AJEDREZ:
-        drawChess();
+        drawChess((*obj_it));
         break;
     case MEZCLA:
-        drawPoints();
-        drawWire();
-        drawChess();
+        drawPoints((*obj_it));
+        drawWire((*obj_it));
+        drawChess((*obj_it));
         break;
     }
 
 }
 
-void Matrix::drawPoints()
+void Matrix::drawAllObjects()
+{
+    drawPLYObjects();
+}
+
+void Matrix::drawObject(int pos)
+{
+    vector<Object3d>::iterator it = objects.begin();
+    if(pos < this->objects.size())
+        it+=pos;
+    this->current_object = it;
+    drawPLYObject(it);
+}
+
+void Matrix::drawObjectTranslated(int pos)
+{
+    vector<Object3d>::iterator it = objects.begin();
+    if(pos < this->objects.size())
+        it+=pos;
+
+    this->current_object = it;
+    glPushMatrix();
+    glScalef(0.5,0.5,0.5);
+    glTranslatef(-12,3,-12);
+    glRotatef((*it).getRotationAngle(),0,1,0);
+    drawPLYObject(it);
+    glPopMatrix();
+}
+
+void Matrix::drawPoints(Object3d & obj)
 {
     glColor3f(0,1,0);
     glPointSize(4);
 
     glBegin(GL_POINTS);
-    vector<_vertex3f>::iterator it = this->vertices.begin();
+    vector<_vertex3f>::iterator it_begin,it_end;
 
-    while(it != this->vertices.end()){
-        glVertex3f((*it).x * this->multiplier,(*it).y * this->multiplier,(*it).z * this->multiplier);
-        it++;
+    obj.getVerticesBegin(it_begin);
+    obj.getVerticesEnd(it_end);
+
+    while(it_begin != it_end){
+        glVertex3f((*it_begin).x * this->multiplier,(*it_begin).y * this->multiplier,(*it_begin).z * this->multiplier);
+        it_begin++;
     }
     glEnd();
 }
 
-void Matrix::drawWire()
+void Matrix::drawWire(Object3d & obj)
 {
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    drawWithTriangles(true);
+    drawWithTriangles(obj,true);
 }
 
-void Matrix::drawSolid()
+void Matrix::drawSolid(Object3d & obj)
 {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    drawWithTriangles();
+    drawWithTriangles(obj);
 }
 
-void Matrix::drawChess()
+void Matrix::drawChess(Object3d & obj)
 {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    drawWithTriangles();
+    drawWithTriangles(obj);
 }
 
-void Matrix::drawWithTriangles(bool wired)
+void Matrix::drawWithTriangles(Object3d & obj, bool wired)
 {
     glColor3f(0,1,0);
     glBegin(GL_TRIANGLES);
-    vector<_vertex3ui>::iterator it_faces = this->faces.begin();
-    float x,y,z;
+    vector<_vertex3ui>::iterator it_begin,it_end,it_faces;
 
-    while(it_faces != this->faces.end()){
+    obj.getFacesBegin(it_begin);
+    obj.getFacesBegin(it_faces);
+    obj.getFacesEnd(it_end);
+    float x,y,z;
+    int i = 0;
+    while(it_faces != it_end){
+        i++;
         if(this->drawing_mode == AJEDREZ || (this->drawing_mode == MEZCLA && !wired)){
-            if(distance(it_faces,this->faces.begin())%2 == 0) {
+            if(distance(it_faces,it_begin)%2 == 0) {
                 glColor3f(1.0, 0.0, 0.0);
             } else {
                 glColor3f(0.0, 0.0, 1.0);
             }
         }
-        /**
-        cout << "[" << (*it_faces)._0 << "," << (*it_faces)._1 << "," << (*it_faces)._2 << "]" << endl;
-        cout << "SIZE:" << this->vertices.size() <<endl;
-*/
-        x=this->vertices.at((*it_faces)._0).x * this->multiplier;
-        y=this->vertices.at((*it_faces)._0).y * this->multiplier;
-        z=this->vertices.at((*it_faces)._0).z * this->multiplier;
+
+        x=obj.getVertice((*it_faces)._0).x * this->multiplier;
+        y=obj.getVertice((*it_faces)._0).y * this->multiplier;
+        z=obj.getVertice((*it_faces)._0).z * this->multiplier;
         glVertex3f(x,y,z);
-        x=this->vertices.at((*it_faces)._1).x * this->multiplier;
-        y=this->vertices.at((*it_faces)._1).y * this->multiplier;
-        z=this->vertices.at((*it_faces)._1).z * this->multiplier;
+        x=obj.getVertice((*it_faces)._1).x * this->multiplier;
+        y=obj.getVertice((*it_faces)._1).y * this->multiplier;
+        z=obj.getVertice((*it_faces)._1).z * this->multiplier;
         glVertex3f(x,y,z);
-        x=this->vertices.at((*it_faces)._2).x * this->multiplier;
-        y=this->vertices.at((*it_faces)._2).y * this->multiplier;
-        z=this->vertices.at((*it_faces)._2).z * this->multiplier;
+        x=obj.getVertice((*it_faces)._2).x * this->multiplier;
+        y=obj.getVertice((*it_faces)._2).y * this->multiplier;
+        z=obj.getVertice((*it_faces)._2).z * this->multiplier;
         glVertex3f(x,y,z);
 
         ++it_faces;
@@ -140,6 +176,7 @@ void Matrix::loadModel(char *ply_model_file)
     vector<float> vertices;
     vector<int> faces;
     _file_ply ply;
+    Object3d obj;
 
     float x,y,z;
     int _0,_1,_2;
@@ -158,7 +195,7 @@ void Matrix::loadModel(char *ply_model_file)
         z = (*it_vertices);
         ++it_vertices;
 
-        this->addVertex(x,y,z);
+        obj.addVertex(x,y,z);
     } while(it_vertices != vertices.end());
 
     do{
@@ -169,8 +206,10 @@ void Matrix::loadModel(char *ply_model_file)
         _2 = (*it_faces);
         ++it_faces;
 
-        this->addFace(_0,_1,_2);
+        obj.addFace(_0,_1,_2);
     } while(it_faces != faces.end());
+
+    storeObject(obj);
 
 }
 
@@ -179,38 +218,18 @@ void Matrix::loadRevolutionModel(char *ply_mode_file, int N)
     vector<float> vertices;
     vector<int> faces;
     _file_ply ply;
-
-    float x,y,z;
+    Object3d obj;
 
     ply.open(ply_mode_file);
     ply.read(vertices,faces);
 
     vector<float>::iterator it_vertices = vertices.begin();
+    RevolutionGenerator::generate(N,vertices,obj);
 
-    RevolutionGenerator::generate(N,vertices,*this);
-
+    storeObject(obj);
 }
 
-void Matrix::clear()
+void Matrix::setDrawingMode(int mode)
 {
-    this->vertices.clear();
-    this->faces.clear();
-}
-
-void Matrix::printVertices()
-{
-    vector<_vertex3f>::iterator it= this->vertices.begin();
-    while(it != this->vertices.end()) {
-        cout << "v[" << distance(this->vertices.begin(),it) << "] (" << (*it).x << "," << (*it).y << "," << (*it).z << ")" << endl;
-        it++;
-    }
-}
-
-void Matrix::printFaces()
-{
-    vector<_vertex3ui>::iterator it= this->faces.begin();
-    while(it != this->faces.end()) {
-        cout << "f[" << distance(this->faces.begin(),it) << "] (" << (*it)._0 << "," << (*it)._1 << "," << (*it)._2 << ")" << endl;
-        it++;
-    }
+    this->drawing_mode = mode;
 }

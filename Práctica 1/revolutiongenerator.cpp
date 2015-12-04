@@ -1,13 +1,13 @@
 #include "revolutiongenerator.h"
 #include <vector>
 #include <vertex.h>
-#include <matrix.h>
+#include <object3d.h>
 
 RevolutionGenerator::RevolutionGenerator()
 {
 }
 
-void RevolutionGenerator::generate(unsigned int steps, vector<float> &vertices_vertex, Matrix &matrix)
+void RevolutionGenerator::generate(unsigned int steps, vector<float> &vertices_vertex, Object3d & obj)
 {
     double angulo =  (PI*2)/steps;
 
@@ -17,7 +17,7 @@ void RevolutionGenerator::generate(unsigned int steps, vector<float> &vertices_v
     _vertex3f aux;
 
     //Vértice tapa abajo
-    matrix.addVertex(_vertex3f(0,vertices_vertex[1],0));
+    obj.addVertex(_vertex3f(0,vertices_vertex[1],0));
 
     while(it != vertices_vertex_end){
 
@@ -28,11 +28,11 @@ void RevolutionGenerator::generate(unsigned int steps, vector<float> &vertices_v
         aux.z = (*it);
         ++it;
 
-        matrix.addVertex(aux);
+        obj.addVertex(aux);
 
         for(unsigned int i=0; i<steps; i++) {
             double anguloR = angulo * i;
-            matrix.addVertex(_vertex3f(
+            obj.addVertex(_vertex3f(
                                  aux.x* cos(anguloR) + aux.z * sin(anguloR),
                                  aux.y,
                                  aux.z * cos(anguloR) - aux.x * sin(anguloR)));
@@ -40,30 +40,30 @@ void RevolutionGenerator::generate(unsigned int steps, vector<float> &vertices_v
     }
 
     //Vértice tapa arriba
-    matrix.addVertex(_vertex3f(0,vertices_vertex[vertices_vertex.size()-2],0));
+    obj.addVertex(_vertex3f(0,vertices_vertex[vertices_vertex.size()-2],0));
 
     vector<int> faces_vertex;
-    int vertices_number = matrix.getVerticesNumber();
+    int vertices_number = obj.getVerticesNumber();
 
     //Caras tapa abajo
     for(unsigned int i=1; i<=steps; i++) {
         if(i==steps) {
-            matrix.addFace(_vertex3ui(0,i,(i+1)%steps));
+            //obj.addFace(_vertex3ui(0,i,(i+1)%steps));
         } else {
-            matrix.addFace(_vertex3ui(0,i,i+1));
+            obj.addFace(_vertex3ui(0,i,i+1));
         }
     }
 
     for(unsigned int i=0; i<=steps; i++){
         if(i==steps) {
             for(unsigned int j=i;j<(vertices_number-steps-1);j=j+steps) {
-                matrix.addFace(_vertex3ui(j,j+1-steps,j+steps));
-                matrix.addFace(_vertex3ui(j+steps,j+1,j+1-steps));
+                obj.addFace(_vertex3ui(j,j+1-steps,j+steps));
+                obj.addFace(_vertex3ui(j+steps,j+1,j+1-steps));
             }
         } else {
             for(unsigned int j=i;j<(vertices_number-steps-1);j=j+steps) {
-                matrix.addFace(_vertex3ui(j,j+1,j+1+steps));
-                matrix.addFace(_vertex3ui(j+steps,j,j+1+steps));
+                obj.addFace(_vertex3ui(j,j+1,j+1+steps));
+                obj.addFace(_vertex3ui(j+steps,j,j+1+steps));
             }
         }
     }
@@ -72,12 +72,12 @@ void RevolutionGenerator::generate(unsigned int steps, vector<float> &vertices_v
 
     for (unsigned int i=steps;i>=1;i--) {
         if(i == 1) {
-            matrix.addFace(_vertex3ui(
+            obj.addFace(_vertex3ui(
                                vertices_number-1,
                                vertices_number-i-1,
                                vertices_number-steps-1));
         } else {
-            matrix.addFace(_vertex3ui(vertices_number-1,
+            obj.addFace(_vertex3ui(vertices_number-1,
                                       vertices_number-i-1,
                                       vertices_number-i));
         }
